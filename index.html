@@ -53,9 +53,8 @@
     .btn { margin-left: 5px; }
     input[type="file"] {
       margin-left: 5px;
-      display: none; /* 隐藏默认文件输入 */
+      display: none; 
     }
-    /* 新增样式 */
     .filter-category {
       margin-bottom: 15px;
     }
@@ -71,7 +70,6 @@
       padding: 2px 6px;
       border-radius: 4px;
     }
-    /* 类别标题颜色 */
     .filter-category.反应物 strong { background: #d9edf7; color: #31708f; }
     .filter-category.生成物 strong { background: #dff0d8; color: #3c763d; }
     .filter-category.条件 strong { background: #fcf8e3; color: #8a6d3b; }
@@ -119,32 +117,11 @@
     const searchBox = document.getElementById("searchBox");
     const fileInput = document.getElementById("fileInput");
 
-    // 页面加载时尝试自动导入本地数据
     window.addEventListener('DOMContentLoaded', initData);
 
     searchBox.addEventListener("input", renderEntries);
 
-    function tryAutoImport() {
-      // 尝试从同目录下的chem_entries.json导入
-      fetch('chem_entries.json')
-        .then(response => {
-          if (!response.ok) throw new Error('文件未找到');
-          return response.json();
-        })
-        .then(data => {
-          entries = data;
-          localStorage.setItem("chemEntries", JSON.stringify(entries));
-          renderEntries();
-          renderFilters();
-          console.log('成功从chem_entries.json导入数据');
-        })
-        .catch(error => {
-          console.log('未找到chem_entries.json，等待手动导入:', error.message);
-        });
-    }
-
     function initData() {
-      // 1. 首先检查 localStorage 是否有数据
       const storedData = localStorage.getItem("chemEntries");
       if (storedData && storedData !== "[]") {
         entries = JSON.parse(storedData);
@@ -152,7 +129,6 @@
         renderFilters();
         console.log('从 localStorage 加载数据');
       } else {
-        // 2. 只有 localStorage 为空时才尝试从文件导入
         fetch('chem_entries.json')
           .then(response => {
             if (!response.ok) throw new Error('文件未找到');
@@ -194,7 +170,6 @@
       };
       reader.readAsText(file);
       
-      // 重置input，允许重复选择同一文件
       event.target.value = '';
     }
 
