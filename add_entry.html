@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>添加条目</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px;
+      font-weight: bold;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    .tag-input {
+      display: block;
+      margin-bottom: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      margin-right: 10px;
+    }
+    .save-btn {
+      background: #28a745;
+      color: white;
+      border: none;
+    }
+    .cancel-btn {
+      background: #ccc;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <h2>添加或修改条目</h2>
+  <label for="title">标题</label>
+  <input type="text" id="title" placeholder="请输入标题">
+
+  <script>
+    const CATEGORIES = ["反应物", "生成物", "条件", "反应类型", "反应物类型", "卤素种类"];
+    let editIndex = localStorage.getItem("editIndex");
+    let entries = JSON.parse(localStorage.getItem("chemEntries") || "[]");
+  </script>
+
+  <div id="tagInputs"></div>
+
+  <label for="remark">备注</label>
+  <textarea id="remark" rows="3" placeholder="请输入备注..."></textarea>
+
+  <button class="save-btn" onclick="saveEntry()">保存</button>
+  <button class="cancel-btn" onclick="goBack()">取消</button>
+
+  <script>
+    const tagDiv = document.getElementById('tagInputs');
+    CATEGORIES.forEach(cat => {
+      const label = document.createElement('label');
+      label.textContent = `${cat}标签（用英文逗号分隔）`;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'tag-input';
+      input.id = `tag-${cat}`;
+      tagDiv.appendChild(label);
+      tagDiv.appendChild(input);
+    });
+
+    if (editIndex !== null) {
+      const data = entries[parseInt(editIndex)];
+      document.getElementById("title").value = data.title;
+      document.getElementById("remark").value = data.remark;
+      CATEGORIES.forEach(cat => {
+        const input = document.getElementById(`tag-${cat}`);
+        input.value = (data.tags[cat] || []).join(", ");
+      });
+    }
+
+    function saveEntry() {
+      const title = document.getElementById("title").value.trim();
+      const remark = document.getElementById("remark").value.trim();
+      if (!title) {
+        alert("标题不能为空");
+        return;
+      }
+      const tags = {};
+      CATEGORIES.forEach(cat => {
+        const input = document.getElementById(`tag-${cat}`).value.trim();
+        tags[cat] = input ? input.split(/\s*,\s*/) : [];
+      });
+
+      const newEntry = { title, tags, remark };
+
+      if (editIndex !== null) {
+        entries[parseInt(editIndex)] = newEntry;
+        localStorage.removeItem("editIndex");
+      } else {
+        entries.push(newEntry);
+      }
+
+      localStorage.setItem("chemEntries", JSON.stringify(entries));
+      alert("保存成功！");
+      window.location.href = "index.html";
+    }
+
+    function goBack() {
+      localStorage.removeItem("editIndex");
+      window.location.href = "index.html";
+    }
+  </script>
+</body>
+</html>
