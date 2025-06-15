@@ -52,6 +52,7 @@
     .btn { margin-left: 5px; }
     input[type="file"] {
       margin-left: 5px;
+      display: none; /* 隐藏默认文件输入 */
     }
     /* 新增样式 */
     .filter-category {
@@ -100,7 +101,8 @@
       <div>
         <button onclick="addEntry()">添加条目</button>
         <button onclick="exportData()">导出数据</button>
-        <input type="file" onchange="importData(event)">
+        <button onclick="importData()">导入数据</button>
+        <input type="file" id="fileInput" accept=".json" onchange="handleFileSelect(event)">
       </div>
     </div>
     <div id="entryContainer"></div>
@@ -114,8 +116,79 @@
     const tagFilters = document.getElementById("tagFilters");
     const entryContainer = document.getElementById("entryContainer");
     const searchBox = document.getElementById("searchBox");
+    const fileInput = document.getElementById("fileInput");
+
+    // 页面加载时尝试自动导入本地数据
+    window.addEventListener('DOMContentLoaded', () => {
+      tryAutoImport();
+    });
 
     searchBox.addEventListener("input", renderEntries);
+
+    function tryAutoImport() {
+      // 尝试从同目录下的chem_entries.json导入
+      fetch('chem_entries.json')
+        .then(response => {
+          if (!response.ok) throw new Error('文件未找到');
+          return response.json();
+        })
+        .then(data => {
+          entries = data;
+          localStorage.setItem("chemEntries", JSON.stringify(entries));
+          renderEntries();
+          renderFilters();
+          console.log('成功从chem_entries.json导入数据');
+        })
+        .catch(error => {
+          console.log('未找到chem_entries.json，等待手动导入:', error.message);
+        });
+    }
+
+    function importData() {
+      // 首先尝试自动导入
+      fetch('chem_entries.json')
+        .then(response => {
+          if (!response.ok) throw new Error('文件未找到');
+          return response.json();
+        })
+        .then(data => {
+          if (confirm('发现本地chem_entries.json文件，是否导入？')) {
+            entries = data;
+            localStorage.setItem("chemEntries", JSON.stringify(entries));
+            renderEntries();
+            renderFilters();
+            alert('导入成功！');
+          }
+        })
+        .catch(error => {
+          // 如果自动导入失败，弹出文件选择窗口
+          fileInput.click();
+        });
+    }
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          entries = data;
+          localStorage.setItem("chemEntries", JSON.stringify(entries));
+          renderEntries();
+          renderFilters();
+          alert('导入成功！');
+        } catch (e) {
+          alert("导入失败：无效的JSON格式。");
+          console.error(e);
+        }
+      };
+      reader.readAsText(file);
+      
+      // 重置input，允许重复选择同一文件
+      event.target.value = '';
+    }
 
     function addEntry() {
       localStorage.removeItem("editIndex");
@@ -144,37 +217,12 @@
       a.click();
     }
 
-    function importData(event) {
-      const file = event.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          try {
-            entries = JSON.parse(e.target.result);
-            localStorage.setItem("chemEntries", JSON.stringify(entries));
-            renderEntries();
-            renderFilters();
-          } catch (e) {
-            alert("导入失败：无效的JSON格式。");
-          }
-        };
-        reader.readAsText(file);
-      }
-    }
-
     function clearAllFilters() {
-      // 清除搜索框
       searchBox.value = "";
-      
-      // 清除所有筛选条件
       CATEGORIES.forEach(cat => filters[cat] = []);
-      
-      // 取消所有复选框的选中状态
       document.querySelectorAll("#tagFilters input[type='checkbox']").forEach(checkbox => {
         checkbox.checked = false;
       });
-      
-      // 重新渲染条目
       renderEntries();
     }
 
@@ -227,23 +275,15 @@
       entryContainer.innerHTML = "";
       
       entries.forEach((entry, index) => {
-        // 标题关键词筛选
         if (keyword && !entry.title.toLowerCase().includes(keyword)) return;
         
-        // 标签筛选 - 不同类别之间是"与"关系
         let shouldShow = true;
-        
-        // 检查每个类别是否有筛选条件
         CATEGORIES.forEach(cat => {
           if (filters[cat].length > 0) {
-            // 当前类别是否有匹配的标签（同一类别内是"或"关系）
             const hasMatch = filters[cat].some(filterTag => 
               entry.tags[cat]?.includes(filterTag)
             );
-            
-            if (!hasMatch) {
-              shouldShow = false;
-            }
+            if (!hasMatch) shouldShow = false;
           }
         });
         
