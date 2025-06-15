@@ -120,9 +120,7 @@
     const fileInput = document.getElementById("fileInput");
 
     // 页面加载时尝试自动导入本地数据
-    window.addEventListener('DOMContentLoaded', () => {
-      tryAutoImport();
-    });
+    window.addEventListener('DOMContentLoaded', initData);
 
     searchBox.addEventListener("input", renderEntries);
 
@@ -145,26 +143,35 @@
         });
     }
 
-    function importData() {
-      // 首先尝试自动导入
-      fetch('chem_entries.json')
-        .then(response => {
-          if (!response.ok) throw new Error('文件未找到');
-          return response.json();
-        })
-        .then(data => {
-          if (confirm('发现本地chem_entries.json文件，是否导入？')) {
-            entries = data;
-            localStorage.setItem("chemEntries", JSON.stringify(entries));
-            renderEntries();
-            renderFilters();
-            alert('导入成功！');
-          }
-        })
-        .catch(error => {
-          // 如果自动导入失败，弹出文件选择窗口
-          fileInput.click();
-        });
+    function initData() {
+      // 1. 首先检查 localStorage 是否有数据
+      const storedData = localStorage.getItem("chemEntries");
+      if (storedData && storedData !== "[]") {
+        entries = JSON.parse(storedData);
+        renderEntries();
+        renderFilters();
+        console.log('从 localStorage 加载数据');
+      } else {
+        // 2. 只有 localStorage 为空时才尝试从文件导入
+        fetch('chem_entries.json')
+          .then(response => {
+            if (!response.ok) throw new Error('文件未找到');
+            return response.json();
+          })
+          .then(data => {
+            if (confirm('检测到初始数据文件(chem_entries.json)，是否导入？')) {
+              entries = data;
+              localStorage.setItem("chemEntries", JSON.stringify(entries));
+              renderEntries();
+              renderFilters();
+            }
+          })
+          .catch(error => {
+            console.log('未找到初始数据文件，使用空数据集:', error.message);
+            entries = [];
+            localStorage.setItem("chemEntries", "[]");
+           });
+      }
     }
 
     function handleFileSelect(event) {
@@ -193,11 +200,13 @@
 
     function addEntry() {
       localStorage.removeItem("editIndex");
+      localStorage.setItem("chemEntries", JSON.stringify(entries));
       window.location.href = "add_entry.html";
     }
 
     function editEntry(index) {
       localStorage.setItem("editIndex", index);
+      localStorage.setItem("chemEntries", JSON.stringify(entries));
       window.location.href = "add_entry.html";
     }
 
@@ -209,6 +218,10 @@
         renderFilters();
       }
     }
+
+    function importData() {
+      fileInput.click();
+    } 
 
     function exportData() {
       const blob = new Blob([JSON.stringify(entries)], { type: "application/json" });
@@ -327,20 +340,19 @@
     renderFilters();
     renderEntries();
   </script>
-  <footer style="
+<footer style="
     position: fixed;
     bottom: 0;
-    left: 0; 
+    left: 0;
     width: 100%;
     background-color: #f0f0f0;
     padding: 10px 20px;
     text-align: center;
     font-size: 14px;
     border-top: 1px solid #ccc;
-    z-index: 100;
   ">
     <div>
-      项目地址: GitHub: <a href="https://github.com/cjzhou0604/Organic-Chemistry-Equation" target="_blank">https://github.com/cjzhou0604/Organic-Chemistry-Equation</a>
+      项目地址：GitHub: <a href="https://github.com/cjzhou0604/Organic-Chemistry-Equation" target="_blank">https://github.com/cjzhou0604/Organic-Chemistry-Equation</a>
       | 邮箱: <a href="mailto:cjzhou0604@gmail.com">cjzhou0604@gmail.com</a>
       <br>
       欢迎各位批评指正！
