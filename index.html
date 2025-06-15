@@ -121,33 +121,72 @@
 
     searchBox.addEventListener("input", renderEntries);
 
-    function initData() {
+
+    async function initData() {
+
       const storedData = localStorage.getItem("chemEntries");
+      let localEntries = [];
+  
       if (storedData && storedData !== "[]") {
-        entries = JSON.parse(storedData);
-        renderEntries();
-        renderFilters();
-        console.log('从 localStorage 加载数据');
-      } else {
-        fetch('chem_entries.json')
-          .then(response => {
-            if (!response.ok) throw new Error('文件未找到');
-            return response.json();
-          })
-          .then(data => {
-            if (confirm('检测到初始数据文件(chem_entries.json)，是否导入？')) {
-              entries = data;
-              localStorage.setItem("chemEntries", JSON.stringify(entries));
-              renderEntries();
-              renderFilters();
-            }
-          })
-          .catch(error => {
-            console.log('未找到初始数据文件，使用空数据集:', error.message);
-            entries = [];
-            localStorage.setItem("chemEntries", "[]");
-           });
+        localEntries = JSON.parse(storedData);
       }
+
+      try {
+        const response = await fetch('chem_entries.json?t=' + Date.now()); 
+        if (!response.ok) throw new Error('文件未找到');
+    
+        const fileEntries = await response.json();
+        const mergedEntries = mergeEntries(localEntries, fileEntries);
+    
+        if (mergedEntries.length > localEntries.length) {
+          const newCount = mergedEntries.length - localEntries.length;
+          console.log(`自动合并了 ${newCount} 条新数据`);
+          showToast(`已自动合并 ${newCount} 条新数据`);
+        }
+    
+        entries = mergedEntries;
+        localStorage.setItem("chemEntries", JSON.stringify(mergedEntries));
+      } catch (error) {
+        console.log('使用本地存储数据:', error.message);
+        entries = localEntries;
+      }
+
+      renderEntries();
+      renderFilters();
+    }
+
+    function mergeEntries(localEntries, fileEntries) {
+      const merged = [...localEntries];
+      const localTitles = new Set(localEntries.map(e => e.title));
+  
+      fileEntries.forEach(entry => {
+        if (!localTitles.has(entry.title)) {
+          merged.push(entry);
+        }
+      });
+  
+      return merged;
+    }
+
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.style = `
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        background: #4CAF50;
+        color: white;
+        padding: 12px;
+        border-radius: 4px;
+        z-index: 1000;
+        animation: fadeIn 0.5s, fadeOut 0.5s 2.5s forwards;
+      `;
+      toast.innerHTML = message;
+      document.body.appendChild(toast);
+  
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
     }
 
     function handleFileSelect(event) {
