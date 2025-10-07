@@ -101,6 +101,7 @@
         <button onclick="addEntry()">添加条目</button>
         <button onclick="exportData()">导出数据</button>
         <button onclick="importData()">导入数据</button>
+        <button onclick="deleteAllEntries()">删除全部</button>
         <input type="file" id="fileInput" accept=".json" onchange="handleFileSelect(event)">
       </div>
     </div>
@@ -233,6 +234,15 @@
       }
     }
 
+    function deleteAllEntries() {
+      if (confirm("确定删除全部条目？此操作不可恢复！")) {
+        entries = [];
+        localStorage.setItem("chemEntries", JSON.stringify(entries));
+        renderEntries();
+        renderFilters();
+      }
+    }
+    
     function importData() {
       fileInput.click();
     } 
@@ -374,3 +384,4 @@
   </footer>
 </body>
 </html>
+
