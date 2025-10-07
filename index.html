@@ -120,7 +120,10 @@
 
     window.addEventListener('DOMContentLoaded', initData);
 
-    searchBox.addEventListener("input", renderEntries);
+    searchBox.addEventListener("input", () => {
+      renderEntries();
+      renderFilters();
+    });
 
 
     async function initData() {
@@ -258,18 +261,18 @@
     function clearAllFilters() {
       searchBox.value = "";
       CATEGORIES.forEach(cat => filters[cat] = []);
-      document.querySelectorAll("#tagFilters input[type='checkbox']").forEach(checkbox => {
-        checkbox.checked = false;
-      });
       renderEntries();
+      renderFilters(); 
     }
 
     function renderFilters() {
-      const tagsByCategory = {};
-      CATEGORIES.forEach(cat => tagsByCategory[cat] = new Set());
+      const keyword = searchBox.value.trim().toLowerCase();
+
+      const allTagsByCategory = {};
+      CATEGORIES.forEach(cat => allTagsByCategory[cat] = new Set());
       entries.forEach(entry => {
         CATEGORIES.forEach(cat => {
-          (entry.tags[cat] || []).forEach(tag => tagsByCategory[cat].add(tag));
+          (entry.tags[cat] || []).forEach(tag => allTagsByCategory[cat].add(tag));
         });
       });
 
@@ -283,10 +286,17 @@
         categoryDiv.appendChild(title);
         
         const tagsContainer = document.createElement("div");
-        tagsByCategory[cat].forEach(tag => {
+        const tags = Array.from(allTagsByCategory[cat]);
+        const visibleTags = keyword
+          ? tags.filter(tag => tag.toLowerCase().includes(keyword))
+          : tags;
+
+        visibleTags.forEach(tag => {
           const checkbox = document.createElement("input");
           checkbox.type = "checkbox";
           checkbox.id = `filter-${cat}-${tag}`;
+          // 同步 checkbox 状态
+          checkbox.checked = filters[cat].includes(tag);
           checkbox.addEventListener("change", () => {
             if (checkbox.checked) {
               filters[cat].push(tag);
@@ -294,6 +304,7 @@
               filters[cat] = filters[cat].filter(t => t !== tag);
             }
             renderEntries();
+            // 注意：不在此处调用 renderFilters，避免干扰用户输入
           });
           
           const label = document.createElement("label");
@@ -303,18 +314,29 @@
           tagsContainer.appendChild(label);
         });
         
-        categoryDiv.appendChild(tagsContainer);
-        tagFilters.appendChild(categoryDiv);
+        if (visibleTags.length > 0) {
+          categoryDiv.appendChild(tagsContainer);
+          tagFilters.appendChild(categoryDiv);
+        }
       });
     }
 
     function renderEntries() {
       const keyword = searchBox.value.trim().toLowerCase();
+
       entryContainer.innerHTML = "";
       
       entries.forEach((entry, index) => {
-        if (keyword && !entry.title.toLowerCase().includes(keyword)) return;
-        
+        let matchesSearch = true;
+        if (keyword) {
+          const titleMatch = entry.title.toLowerCase().includes(keyword);
+          const tagsMatch = CATEGORIES.some(cat =>
+            (entry.tags[cat] || []).some(tag => tag.toLowerCase().includes(keyword))
+          );
+          matchesSearch = titleMatch || tagsMatch;
+        }
+        if (!matchesSearch) return;
+
         let shouldShow = true;
         CATEGORIES.forEach(cat => {
           if (filters[cat].length > 0) {
@@ -324,7 +346,6 @@
             if (!hasMatch) shouldShow = false;
           }
         });
-        
         if (!shouldShow) return;
 
         const div = document.createElement("div");
@@ -359,6 +380,8 @@
 
         entryContainer.appendChild(div);
       });
+
+      document.getElementById("totalEntries").textContent = entryContainer.children.length;
     }
 
     renderFilters();
