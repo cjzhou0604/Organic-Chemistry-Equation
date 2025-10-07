@@ -104,6 +104,7 @@
         <button onclick="deleteAllEntries()">删除全部</button>
         <input type="file" id="fileInput" accept=".json" onchange="handleFileSelect(event)">
       </div>
+      <div>总条目数：<span id="totalEntries">0</span></div>
     </div>
     <div id="entryContainer"></div>
   </div>
@@ -127,32 +128,34 @@
 
 
     async function initData() {
-
       const storedData = localStorage.getItem("chemEntries");
       let localEntries = [];
-  
-      if (storedData && storedData !== "[]") {
-        localEntries = JSON.parse(storedData);
+
+      if (storedData) {
+        try {
+          localEntries = JSON.parse(storedData);
+          if (Array.isArray(localEntries) && localEntries.length > 0) {
+            entries = localEntries;
+            renderEntries();
+            renderFilters();
+            return;
+          }
+        } catch (e) {
+          console.warn("本地数据解析失败，尝试加载预设数据", e);
+        }
       }
 
       try {
-        const response = await fetch('chem_entries.json?t=' + Date.now()); 
+        const response = await fetch('chem_entries.json?t=' + Date.now());
         if (!response.ok) throw new Error('文件未找到');
-    
+
         const fileEntries = await response.json();
-        const mergedEntries = mergeEntries(localEntries, fileEntries);
-    
-        if (mergedEntries.length > localEntries.length) {
-          const newCount = mergedEntries.length - localEntries.length;
-          console.log(`自动合并了 ${newCount} 条新数据`);
-          showToast(`已自动合并 ${newCount} 条新数据`);
-        }
-    
-        entries = mergedEntries;
-        localStorage.setItem("chemEntries", JSON.stringify(mergedEntries));
+        entries = fileEntries;
+        localStorage.setItem("chemEntries", JSON.stringify(entries));
+        console.log('已加载预设数据');
       } catch (error) {
-        console.log('使用本地存储数据:', error.message);
-        entries = localEntries;
+        console.log('预设数据加载失败，使用空数据:', error.message);
+        entries = [];
       }
 
       renderEntries();
@@ -196,23 +199,36 @@
     function handleFileSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
-      
+
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
           const data = JSON.parse(e.target.result);
+
+          if (!Array.isArray(data)) {
+            throw new Error("数据格式错误：必须是条目数组");
+          }
+
+          for (const item of data) {
+            if (typeof item !== 'object' || typeof item.title !== 'string') {
+              throw new Error("数据格式错误：条目缺少 title 字段");
+            }
+          }
+
           entries = data;
           localStorage.setItem("chemEntries", JSON.stringify(entries));
           renderEntries();
           renderFilters();
-          alert('导入成功！');
+          showToast('导入成功！');
         } catch (e) {
-          alert("导入失败：无效的JSON格式。");
-          console.error(e);
+          console.error("导入错误:", e);
+          showToast("导入失败：" + (e.message || "无效的JSON格式"));
         }
       };
+      reader.onerror = function() {
+        showToast("文件读取失败");
+      };
       reader.readAsText(file);
-      
       event.target.value = '';
     }
 
@@ -382,6 +398,8 @@
       });
 
       document.getElementById("totalEntries").textContent = entryContainer.children.length;
+
+      
     }
 
     renderFilters();
